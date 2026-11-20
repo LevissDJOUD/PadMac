@@ -1,0 +1,4 @@
+# À fusionner dans la section flutter: existante de pubspec.yaml
+flutter:
+  assets:
+    - assets/images/padmac_brand.png
