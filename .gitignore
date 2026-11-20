@@ -1,0 +1,50 @@
+# ==========================================
+# Flutter / Dart
+# ==========================================
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# ==========================================
+# IDE
+# ==========================================
+
+.idea/
+.vscode/
+*.iml
+
+# ==========================================
+# macOS
+# ==========================================
+
+.DS_Store
+
+# ==========================================
+# Android - fichiers locaux et générés
+# ==========================================
+
+android/.gradle/
+android/local.properties
+android/key.properties
+android/.cxx/
+android/**/build/
+
+# ==========================================
+# Captures et fichiers temporaires
+# ==========================================
+
+captures/
+*.log
+
+# ==========================================
+# Clés et certificats privés
+# ==========================================
+
+**/*.keystore
+**/*.jks

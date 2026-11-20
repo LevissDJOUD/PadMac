@@ -1,15 +1,6 @@
 # PadMac
 
-**PadMac transforme un téléphone Android en manette Bluetooth utilisable avec un Mac.** L'application propose une interface tactile inspirée des manettes Xbox et transmet les commandes au Mac, où [OpenJoystickDriver (OJD)](https://github.com/GuardianOfDreams/OpenJoystickDriver) prend en charge la manette et expose un contrôleur virtuel à macOS.
-
-<p align="center">
-  <a href="https://x.com/OGDJOUD">
-    <img src="https://img.shields.io/badge/X-000000?style=for-the-badge&logo=x&logoColor=white" alt="Suivre sur X" />
-  </a>
-  <a href="https://www.linkedin.com/in/djoud-og/">
-    <img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="Profil LinkedIn" />
-  </a>
-</p>
+**PadMac transforme un téléphone Android en manette Bluetooth utilisable avec un Mac.** L'application propose une interface tactile inspirée des manettes Xbox et transmet les commandes au Mac, où [OpenJoystickDriver (OJD)](https://github.com/xsyetopz/OpenJoystickDriver) prend en charge la manette et expose un contrôleur virtuel à macOS.
 
 > **État du projet** — PadMac cible principalement le scénario **Android → Bluetooth → macOS avec OpenJoystickDriver**. La compatibilité avec Windows n'est pas garantie et Windows n'est pas une plateforme officiellement prise en charge.
 

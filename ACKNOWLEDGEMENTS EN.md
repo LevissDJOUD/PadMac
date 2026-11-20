@@ -4,11 +4,9 @@ PadMac is an independent open-source project made possible with the help of exis
 
 ## OpenJoystickDriver (OJD)
 
-PadMac is designed to work with [OpenJoystickDriver (OJD)](https://github.com/GuardianOfDreams/OpenJoystickDriver), a macOS application that enables compatible game controllers to be exposed to games through virtual gamepad devices.
+PadMac is designed to work with [OpenJoystickDriver (OJD)](https://github.com/xsyetopz/OpenJoystickDriver), a macOS application that enables compatible game controllers to be exposed to games through virtual gamepad devices.
 
-OJD is developed and maintained by **Krystian J.**
-
-We gratefully acknowledge the work behind OpenJoystickDriver, which provides the macOS-side functionality that makes the PadMac project possible.
+We warmly thank the people who develop and maintain OpenJoystickDriver, as well as contributors who participate in its evolution.
 
 **Important:** PadMac is an independent project. It is not affiliated with, endorsed by, or officially supported by the OpenJoystickDriver project or its maintainer.
 

@@ -2,9 +2,15 @@
 
 Ce fichier répertorie les changements notables apportés à PadMac.
 
-Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les versions publiées seront identifiées par un tag Git et une GitHub Release correspondante.
+Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Les versions publiées sont identifiées par un tag Git et une GitHub Release correspondante.
 
-## [Unreleased] — Première version en préparation
+## [Unreleased]
+
+Aucun changement enregistré pour le moment.
+
+## [1.0.0] - 2026-11-20
+
+Première version de PadMac préparée pour une publication stable.
 
 ### Ajouté
 
@@ -22,5 +28,3 @@ Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 - Documentation de l'installation et de la configuration d'OpenJoystickDriver.
 - Instructions de développement, de génération d'APK et de diagnostic.
 - Ajout des notices relatives aux dépendances tierces.
-
-> **Publication :** aucune version stable `v1.0.0` n'est déclarée ici. Le tag et la GitHub Release `v1.0.0` seront créés lorsque les tests de bout en bout sur Android, Bluetooth, macOS et OJD auront été jugés suffisamment concluants.
