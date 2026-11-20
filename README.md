@@ -246,7 +246,7 @@ Pour toute question, remarque ou proposition de collaboration :
 
 <p align="center">
   <a href="https://x.com/OGDJOUD">
-    <img src="https://img.shields.io/badge/X-%40OGDJOUD-000000?style=flat&logo=x&logoColor=white" alt="X — @OGDJOUD" />
+    <img src="https://img.shields.io/badge/X-%40OGDJOUD-000000?style=flat&logo=x&logoColor=white" alt="@OGDJOUD" />
   </a>
   &nbsp;
   <a href="https://www.linkedin.com/in/djoud-og/">
