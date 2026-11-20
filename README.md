@@ -240,24 +240,10 @@ Les modifications du projet sont consignées dans [`CHANGELOG.md`](CHANGELOG.md)
 
 ## Contact
 
-Pour toute question, remarque ou proposition de collaboration :
-
 <h3 align="center">Retrouvez-moi également sur</h3>
 
 <p align="center">
-  <a href="https://x.com/OGDJOUD" style="text-decoration: none; display: inline-block; line-height: 0;">
-    <img
-      src="https://img.shields.io/badge/%40OGDJOUD-000000?style=flat&logo=x&logoColor=white"
-      alt="X — @OGDJOUD"
-      style="display: block; border: 0;"
-    />
-  </a>
-  &nbsp; - &nbsp;
-  <a href="https://www.linkedin.com/in/djoud-og/" style="text-decoration: none; display: inline-block; line-height: 0;">
-    <img
-      src="https://img.shields.io/badge/LinkedIn-OG%20DJOUD-0A66C2?style=flat&logo=linkedin&logoColor=white"
-      alt="LinkedIn — OG DJOUD"
-      style="display: block; border: 0;"
-    />
-  </a>
+  <a href="https://x.com/OGDJOUD"><img src="https://img.shields.io/badge/%40OGDJOUD-000000?style=flat&logo=x&logoColor=white" alt="X — @OGDJOUD" /></a>
+  <br/><br/>
+  <a href="https://www.linkedin.com/in/djoud-og/"><img src="https://img.shields.io/badge/LinkedIn-OG%20DJOUD-0A66C2?style=flat&logo=linkedin&logoColor=white" alt="LinkedIn — OG DJOUD" /></a>
 </p>
