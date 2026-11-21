@@ -8,6 +8,16 @@ Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 Aucun changement enregistré pour le moment.
 
+## [1.1.1] - 2026-11-21
+
+Mise à jour corrective et visuelle de l'interface, sans changement annoncé du protocole HID ni des profils de manette.
+
+### Modifié
+
+- Affichage des variantes PNG du logo dans leurs couleurs d'origine, sans filtre monochrome, sur le splash screen.
+- Allègement du splash screen avec suppression de la mention « ANDROID • MAC ».
+- Raccourcissement du libellé « Balayage automatique de test » en « Balayage automatique » sur l'écran de connexion, sans modifier le fonctionnement du balayage.
+
 ## [1.1.0] - 2026-11-21
 
 Évolution majeure de l'interface et de la prise en charge des profils de manettes. PadMac ne se limite plus à une disposition inspirée de Xbox et propose désormais trois expériences adaptées aux profils Xbox, PlayStation DualShock 4 et Nintendo Switch Pro.
@@ -35,6 +45,7 @@ Aucun changement enregistré pour le moment.
 
 - Mise à jour du README.md pour présenter les trois profils, leurs particularités et les limites connues.
 - Actualisation de la structure du projet et des ressources graphiques documentées.
+- Mise à jour de `THIRD_PARTY_NOTICES.md` avec les dépendances directes identifiées, leurs licences et les vérifications restant à effectuer.
 
 ### Limites connues
 

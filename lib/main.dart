@@ -831,7 +831,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               value: _sweepOn,
               onChanged: _toggleSweep,
               activeThumbColor: _accent,
-              title: const Text('Balayage automatique de test'),
+              title: const Text('Balayage automatique'),
               subtitle: Text(
                 'Fait varier les sticks, les gâchettes et les boutons pour vérifier la réception dans OJD.',
                 style: TextStyle(color: _muted),

@@ -2,7 +2,7 @@
 
 **PadMac transforme un téléphone Android en manette Bluetooth utilisable avec un Mac.** L'application propose trois dispositions tactiles inspirées des manettes **Xbox**, **PlayStation DualShock 4** et **Nintendo Switch Pro**. Les commandes sont transmises au Mac en Bluetooth HID ; [OpenJoystickDriver (OJD)](https://github.com/xsyetopz/OpenJoystickDriver) prend ensuite en charge le contrôleur et expose un périphérique virtuel à macOS.
 
-> **État du projet — v1.1.0** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
+> **État du projet — v1.1.1 (build 3)** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
 
 ## Fonctionnalités
 

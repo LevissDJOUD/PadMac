@@ -90,41 +90,6 @@ class _PadMacSplashScreenState extends State<PadMacSplashScreen>
     super.dispose();
   }
 
-  Widget _buildTopLabel(AppPalette palette) {
-    return FadeTransition(
-      opacity: _contentOpacity,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: palette.accent,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: palette.accent.withValues(alpha: 0.45),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 9),
-          Text(
-            'ANDROID  •  MAC',
-            style: TextStyle(
-              color: palette.muted.withValues(alpha: 0.8),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLogo(AppPalette palette) {
     return FadeTransition(
       opacity: _logoOpacity,
@@ -148,21 +113,18 @@ class _PadMacSplashScreenState extends State<PadMacSplashScreen>
           alignment: Alignment.center,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: ColorFiltered(
-              colorFilter: ColorFilter.mode(palette.accent, BlendMode.srcIn),
-              child: Image.asset(
-                brandAssetForProfile(AppTheme.profile.value),
-                width: 82,
-                height: 82,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.sports_esports_rounded,
-                    color: palette.accent,
-                    size: 52,
-                  );
-                },
-              ),
+            child: Image.asset(
+              brandAssetForProfile(AppTheme.profile.value),
+              width: 82,
+              height: 82,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.sports_esports_rounded,
+                  color: palette.accent,
+                  size: 52,
+                );
+              },
             ),
           ),
         ),
@@ -297,9 +259,6 @@ class _PadMacSplashScreenState extends State<PadMacSplashScreen>
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
               child: Column(
                 children: [
-                  // Partie supérieure.
-                  _buildTopLabel(palette),
-
                   const Spacer(flex: 3),
 
                   // Identité principale.
