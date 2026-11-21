@@ -152,10 +152,11 @@ class HidGamepad {
   static const EventChannel _events = EventChannel('padmac/hid_events');
   static const int reportLength = 16;
 
-  static Stream<Map<String, String>> get events => _events
-      .receiveBroadcastStream()
-      .map((dynamic event) {
-        final Map<Object?, Object?> raw = Map<Object?, Object?>.from(event as Map);
+  static Stream<Map<String, String>> get events =>
+      _events.receiveBroadcastStream().map((dynamic event) {
+        final Map<Object?, Object?> raw = Map<Object?, Object?>.from(
+          event as Map,
+        );
         return <String, String>{
           'event': raw['event']?.toString() ?? '',
           'value': raw['value']?.toString() ?? '',
@@ -174,20 +175,23 @@ class HidGamepad {
     final List<dynamic> raw =
         await _method.invokeMethod<List<dynamic>>('bonded') ?? <dynamic>[];
 
-    return raw.map((dynamic item) {
-      final Map<Object?, Object?> map = Map<Object?, Object?>.from(item as Map);
-      return BondedDevice(
-        map['name']?.toString() ?? '',
-        map['address']?.toString() ?? '',
-      );
-    }).toList(growable: false);
+    return raw
+        .map((dynamic item) {
+          final Map<Object?, Object?> map = Map<Object?, Object?>.from(
+            item as Map,
+          );
+          return BondedDevice(
+            map['name']?.toString() ?? '',
+            map['address']?.toString() ?? '',
+          );
+        })
+        .toList(growable: false);
   }
 
   static Future<bool> connect(String address) async {
-    return (await _method.invokeMethod<bool>(
-          'connect',
-          <String, String>{'address': address},
-        )) ??
+    return (await _method.invokeMethod<bool>('connect', <String, String>{
+          'address': address,
+        })) ??
         false;
   }
 
@@ -198,10 +202,9 @@ class HidGamepad {
   /// Masque ou restaure les barres système via WindowInsetsController Android.
   /// Nécessaire sur Android 16+ lorsque SystemUiMode.immersiveSticky est ignoré.
   static Future<void> setImmersiveMode(bool enabled) async {
-    await _method.invokeMethod<bool>(
-      'systemUi',
-      <String, bool>{'immersive': enabled},
-    );
+    await _method.invokeMethod<bool>('systemUi', <String, bool>{
+      'immersive': enabled,
+    });
   }
 
   static Future<bool> sendReport(Uint8List report) async {

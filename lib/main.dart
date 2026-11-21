@@ -3,16 +3,24 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:padmac/brand_assets.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'app_theme.dart';
+import 'controller_profile.dart';
+import 'playstation_glyph.dart';
+import 'layouts/controller_layout_spec.dart';
+import 'layouts/dualshock4_layout.dart';
+import 'layouts/switch_pro_layout.dart';
+import 'layouts/xbox_layout.dart';
 import 'hid_gamepad.dart';
 import 'splash_screen.dart';
 
-const Color _background = Color(0xFF101513);
-const Color _surface = Color(0xFF1A211D);
-const Color _surfaceRaised = Color(0xFF252E28);
-const Color _accent = Color(0xFF55D889);
-const Color _muted = Color(0xFF94A39A);
+AppPalette get _palette => AppTheme.current;
+Color get _background => _palette.background;
+Color get _surfaceRaised => _palette.surfaceRaised;
+Color get _accent => _palette.accent;
+Color get _muted => _palette.muted;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +31,10 @@ Future<void> main() async {
   ]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  // Charge le dernier profil avant d'afficher le splash screen : sa palette
+  // correspond ainsi immédiatement à la préférence sauvegardée.
+  await AppTheme.initialize();
+
   runApp(const PadMacApp());
 }
 
@@ -31,27 +43,17 @@ class PadMacApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: _accent,
-      brightness: Brightness.dark,
-      surface: _surface,
-    );
-
-    return MaterialApp(
-      title: 'PadMac',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: scheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: _background,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: _background,
-          foregroundColor: Colors.white,
-          centerTitle: false,
-        ),
-        cardColor: _surface,
-      ),
-      home: const PadMacSplashScreen(nextScreen: HomePage()),
+    return ValueListenableBuilder<ControllerProfileId>(
+      valueListenable: AppTheme.profile,
+      builder:
+          (BuildContext context, ControllerProfileId profileId, Widget? child) {
+            return MaterialApp(
+              title: 'PadMac',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.themeFor(profileId),
+              home: const PadMacSplashScreen(nextScreen: HomePage()),
+            );
+          },
     );
   }
 }
@@ -83,6 +85,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   double _stickSensitivity = 1.0;
   double _stickDeadZone = 0.10;
   double _triggerSensitivity = 1.0;
+
+  ControllerProfileId _controllerProfileId = AppTheme.profile.value;
+
+  ControllerProfile get _controllerProfile =>
+      ControllerProfile.fromId(_controllerProfileId);
+
+  String get _brandAsset => brandAssetForProfile(_controllerProfileId);
 
   @override
   void initState() {
@@ -185,6 +194,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'Impossible d’ouvrir les paramètres : ${error.message ?? error.code}',
       );
     }
+  }
+
+  void _selectControllerProfile(ControllerProfileId? profileId) {
+    if (profileId == null || profileId == _controllerProfileId) return;
+
+    // Neutralise les commandes avant de changer leur signification visuelle.
+    _resetLocalState(send: true);
+    // Le changement visuel est immédiat ; le profil est aussi sauvegardé
+    // pour être restauré au prochain lancement de l'application.
+    unawaited(AppTheme.selectProfile(profileId));
+    setState(() => _controllerProfileId = profileId);
+    _addLog('Disposition sélectionnée : ${_controllerProfile.name}.');
   }
 
   @override
@@ -375,11 +396,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _setTrigger(bool left, int value) {
+    final int normalizedValue = _controllerProfile.digitalTriggers
+        ? (value > 0 ? 255 : 0)
+        : value.clamp(0, 255).toInt();
+
     setState(() {
       if (left) {
-        _state.lt = value.clamp(0, 255).toInt();
+        _state.lt = normalizedValue;
       } else {
-        _state.rt = value.clamp(0, 255).toInt();
+        _state.rt = normalizedValue;
       }
     });
     _pushReport();
@@ -425,8 +450,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _state.ly = GamepadState.axis16(math.sin(phase));
         _state.rx = GamepadState.axis16(math.cos(-phase));
         _state.ry = GamepadState.axis16(math.sin(-phase));
-        _state.lt = GamepadState.trigger8((math.sin(phase) + 1.0) / 2.0);
-        _state.rt = GamepadState.trigger8((math.cos(phase) + 1.0) / 2.0);
+
+        final int leftSweep = GamepadState.trigger8(
+          (math.sin(phase) + 1.0) / 2.0,
+        );
+        final int rightSweep = GamepadState.trigger8(
+          (math.cos(phase) + 1.0) / 2.0,
+        );
+        _state.lt = _controllerProfile.digitalTriggers
+            ? (leftSweep >= 128 ? 255 : 0)
+            : leftSweep;
+        _state.rt = _controllerProfile.digitalTriggers
+            ? (rightSweep >= 128 ? 255 : 0)
+            : rightSweep;
+
         _state.buttons = 1 << ((phase / 1.5).floor() % kButtonNames.length);
         _state.hat = 8;
         _directions.fillRange(0, _directions.length, false);
@@ -490,7 +527,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Image.asset(
-                  'assets/images/padmac_brand.png',
+                  _brandAsset,
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
@@ -501,7 +538,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       color: _accent.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.gamepad_rounded, color: _accent),
+                    child: Icon(Icons.gamepad_rounded, color: _accent),
                   ),
                 ),
               ),
@@ -517,7 +554,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         letterSpacing: 2,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Manette virtuelle Bluetooth',
                       style: TextStyle(color: _muted, fontSize: 12),
                     ),
@@ -542,7 +579,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   const SizedBox(height: 6),
                   Text(
                     _connected ? 'Le Mac est connecté à PadMac.' : 'Initialise le périphérique HID, rends le Pixel visible puis connecte-le depuis le Mac.',
-                    style: const TextStyle(color: _muted, height: 1.35),
+                    style: TextStyle(color: _muted, height: 1.35),
                   ),
                   const SizedBox(height: 14),
                   Column(
@@ -682,10 +719,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 children: <Widget>[
                   Row(
                     children: <Widget>[
-                      const Icon(
-                        Icons.bluetooth_connected_rounded,
-                        color: _accent,
-                      ),
+                      Icon(Icons.bluetooth_connected_rounded, color: _accent),
                       const SizedBox(width: 8),
                       Text(
                         'Appareils déjà appairés',
@@ -695,14 +729,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       const Spacer(),
                       Text(
                         '${_bonded.length}',
-                        style: const TextStyle(color: _muted),
+                        style: TextStyle(color: _muted),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   if (_bonded.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         'Aucun appareil chargé. Utilise « Appareils appairés » pour actualiser la liste.',
                         style: TextStyle(color: _muted),
@@ -712,7 +746,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ..._bonded.map((BondedDevice device) {
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(
+                        leading: CircleAvatar(
                           backgroundColor: _surfaceRaised,
                           child: Icon(Icons.laptop_mac_rounded, color: _accent),
                         ),
@@ -738,7 +772,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 children: <Widget>[
                   Row(
                     children: <Widget>[
-                      const Icon(Icons.terminal_rounded, color: _accent),
+                      Icon(Icons.terminal_rounded, color: _accent),
                       const SizedBox(width: 8),
                       Text(
                         'Journal système',
@@ -763,7 +797,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       border: Border.all(color: Colors.white10),
                     ),
                     child: _logs.isEmpty
-                        ? const Align(
+                        ? Align(
                             alignment: Alignment.topLeft,
                             child: Text(
                               'En attente des événements Bluetooth…',
@@ -778,9 +812,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Text(
                                   _logs[index],
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: 'monospace',
-                                    color: Color(0xFF9BE6B6),
+                                    color: _accent,
                                     fontSize: 10.5,
                                   ),
                                 ),
@@ -798,11 +832,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               onChanged: _toggleSweep,
               activeThumbColor: _accent,
               title: const Text('Balayage automatique de test'),
-              subtitle: const Text(
+              subtitle: Text(
                 'Fait varier les sticks, les gâchettes et les boutons pour vérifier la réception dans OJD.',
                 style: TextStyle(color: _muted),
               ),
-              secondary: const Icon(Icons.radar_rounded, color: _accent),
+              secondary: Icon(Icons.radar_rounded, color: _accent),
             ),
           ),
           const SizedBox(height: 8),
@@ -813,7 +847,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: _accent,
-              foregroundColor: const Color(0xFF0D1B12),
+              foregroundColor: Colors.black,
             ),
           ),
         ],
@@ -822,6 +856,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _settingsPage() {
+    final ControllerProfile profile = _controllerProfile;
+
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 26),
@@ -835,7 +871,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   color: _accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(Icons.tune_rounded, color: _accent, size: 25),
+                child: Icon(Icons.tune_rounded, color: _accent, size: 25),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -847,7 +883,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w900),
                     ),
-                    const Text(
+                    Text(
                       'Personnalise les sensations de ta manette.',
                       style: TextStyle(color: _muted, fontSize: 12),
                     ),
@@ -859,11 +895,58 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           const SizedBox(height: 20),
           Card(
             child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Icon(Icons.gamepad_rounded, color: _accent),
+                      SizedBox(width: 9),
+                      Text(
+                        'Disposition de la manette',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ControllerProfileId>(
+                    initialValue: _controllerProfileId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Profil',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ControllerProfile.all
+                        .map(
+                          (ControllerProfile item) =>
+                              DropdownMenuItem<ControllerProfileId>(
+                                value: item.id,
+                                child: Text(item.name),
+                              ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _selectControllerProfile,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    profile.description,
+                    style: TextStyle(color: _muted, fontSize: 11, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Card(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Row(
+                  Row(
                     children: <Widget>[
                       Icon(Icons.gamepad_rounded, color: _accent),
                       SizedBox(width: 9),
@@ -920,7 +1003,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Row(
+                  Row(
                     children: <Widget>[
                       Icon(Icons.sports_esports_rounded, color: _accent),
                       SizedBox(width: 9),
@@ -936,12 +1019,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   _SettingsSlider(
                     title: 'Sensibilité LT / RT',
-                    subtitle: 'Permet d’atteindre la pression maximale plus tôt ou plus progressivement.',
+                    subtitle: profile.digitalTriggers
+                        ? 'ZL et ZR fonctionnent en tout-ou-rien dans cette disposition.'
+                        : 'Permet d’atteindre la pression maximale plus tôt ou plus progressivement.',
                     value: _triggerSensitivity,
                     min: 0.60,
                     max: 1.50,
                     divisions: 18,
-                    valueLabel: '${(_triggerSensitivity * 100).round()} %',
+                    valueLabel: profile.digitalTriggers
+                        ? 'Numérique'
+                        : '${(_triggerSensitivity * 100).round()} %',
+                    enabled: !profile.digitalTriggers,
                     onChanged: (double value) =>
                         setState(() => _triggerSensitivity = value),
                   ),
@@ -954,7 +1042,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: <Widget>[
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
@@ -993,7 +1081,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           Center(
             child: Text(
               'PADMAC  •  ${_connected ? 'CONNECTÉ' : 'EN ATTENTE DU MAC'}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: _muted,
                 fontSize: 10,
                 letterSpacing: 1.4,
@@ -1007,10 +1095,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _padPage() {
+    final ControllerProfile profile = _controllerProfile;
+    final ControllerLayoutSpec layout = switch (profile.id) {
+      ControllerProfileId.xbox => XboxLayout.spec,
+      ControllerProfileId.dualShock4 => DualShock4Layout.spec,
+      ControllerProfileId.switchPro => SwitchProLayout.spec,
+    };
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: <Color>[Color(0xFF1A241E), _background, Color(0xFF0B100D)],
+          colors: <Color>[
+            _palette.backgroundGradientStart,
+            _background,
+            _palette.backgroundGradientEnd,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1024,9 +1123,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 .min(width / 900.0, height / 380.0)
                 .clamp(0.72, 1.12)
                 .toDouble();
-            final double stickSize = 116.0 * scale * _stickSizeFactor;
-            final double dpadSize = 124.0 * scale;
-            final double abxySize = 138.0 * scale;
+            final double stickSize =
+                116.0 * scale * _stickSizeFactor * layout.stickSizeFactor;
+            final double dpadSize = 124.0 * scale * layout.dpadSizeFactor;
+            final double abxySize = 138.0 * scale * layout.faceSizeFactor;
             final double bodyTop = 104.0 * scale;
             final double bodyHeight = (height - bodyTop - 5.0)
                 .clamp(120.0, height)
@@ -1056,11 +1156,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      const Icon(
-                        Icons.gamepad_rounded,
-                        color: _accent,
-                        size: 19,
-                      ),
+                      Icon(Icons.gamepad_rounded, color: _accent, size: 19),
                       const SizedBox(width: 7),
                       Text(
                         'PADMAC',
@@ -1114,17 +1210,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                 ),
 
-                // Gâchettes analogiques placées tout en haut, à l'extérieur.
+                // Gâchettes et boutons d'épaule selon le profil sélectionné.
                 Positioned(
                   left: 18 * scale,
                   top: 35 * scale,
                   child: _ShoulderCluster(
-                    triggerLabel: 'LT',
-                    bumperLabel: 'LB',
+                    triggerLabel: profile.leftTrigger,
+                    bumperLabel: profile.leftBumper,
                     triggerValue: _state.lt,
                     bumperPressed: (_state.buttons & (1 << 4)) != 0,
-                    width: 132 * scale,
+                    width: 138 * scale,
                     sensitivity: _triggerSensitivity,
+                    digitalTrigger: profile.digitalTriggers,
                     onTriggerChanged: (int value) => _setTrigger(true, value),
                     onBumperChanged: (bool pressed) => _setButton(4, pressed),
                   ),
@@ -1133,21 +1230,38 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   right: 18 * scale,
                   top: 35 * scale,
                   child: _ShoulderCluster(
-                    triggerLabel: 'RT',
-                    bumperLabel: 'RB',
+                    triggerLabel: profile.rightTrigger,
+                    bumperLabel: profile.rightBumper,
                     triggerValue: _state.rt,
                     bumperPressed: (_state.buttons & (1 << 5)) != 0,
-                    width: 132 * scale,
+                    width: 138 * scale,
                     sensitivity: _triggerSensitivity,
+                    digitalTrigger: profile.digitalTriggers,
                     onTriggerChanged: (int value) => _setTrigger(false, value),
                     onBumperChanged: (bool pressed) => _setButton(5, pressed),
                   ),
                 ),
 
-                // Stick gauche : position haute et extérieure, comme sur Xbox.
+                if (layout.showTouchpadPreview)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: bodyTop + bodyHeight * layout.touchpadTopFactor,
+                    child: Center(
+                      child: _TouchpadPreview(
+                        width: math.min(
+                          width * layout.touchpadWidthFactor,
+                          layout.touchpadMaxWidth * scale,
+                        ),
+                        height: layout.touchpadHeight * scale,
+                      ),
+                    ),
+                  ),
+
+                // Stick gauche : position haute et extérieure.
                 Positioned(
-                  left: width * 0.065,
-                  top: bodyTop + bodyHeight * 0.025,
+                  left: width * layout.leftStickLeftFactor,
+                  top: bodyTop + bodyHeight * layout.leftStickTopFactor,
                   child: _Stick(
                     label: 'L STICK',
                     x: _state.lx,
@@ -1156,41 +1270,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     sensitivity: _stickSensitivity,
                     deadZone: _stickDeadZone,
                     onChanged: _setLeftStick,
+                    clickLabel: 'L3',
+                    clickPressed: (_state.buttons & (1 << 8)) != 0,
+                    onClickChanged: (bool pressed) => _setButton(8, pressed),
                   ),
                 ),
 
                 // D-pad : plus bas et légèrement vers l'intérieur.
                 Positioned(
-                  left: width * 0.22,
-                  top: bodyTop + bodyHeight * 0.51,
+                  left: width * layout.dpadLeftFactor,
+                  top: bodyTop + bodyHeight * layout.dpadTopFactor,
                   child: _DPad(
                     size: dpadSize,
                     directions: _directions,
                     onChanged: _setDirection,
+                    separated: layout.separatedDpad,
                   ),
                 ),
 
-                // Boutons centraux : Guide au-dessus de View et Menu.
+                // Boutons centraux : les fonctions changent selon le profil.
                 Positioned(
-                  left: (width - 154 * scale) / 2,
-                  top: bodyTop + bodyHeight * 0.36,
+                  left: (width - 166 * scale) / 2,
+                  top: bodyTop + bodyHeight * layout.centerControlsTopFactor,
                   child: _CenterControls(
                     scale: scale,
-                    viewPressed: (_state.buttons & (1 << 6)) != 0,
-                    menuPressed: (_state.buttons & (1 << 7)) != 0,
-                    guidePressed: (_state.buttons & (1 << 10)) != 0,
-                    sharePressed: (_state.buttons & (1 << 11)) != 0,
-                    onShare: (bool pressed) => _setButton(11, pressed),
-                    onView: (bool pressed) => _setButton(6, pressed),
-                    onMenu: (bool pressed) => _setButton(7, pressed),
-                    onGuide: (bool pressed) => _setButton(10, pressed),
+                    profile: profile,
+                    leftPressed: (_state.buttons & (1 << 6)) != 0,
+                    middlePressed: (_state.buttons & (1 << 11)) != 0,
+                    rightPressed: (_state.buttons & (1 << 7)) != 0,
+                    systemPressed: (_state.buttons & (1 << 10)) != 0,
+                    onLeft: (bool pressed) => _setButton(6, pressed),
+                    onMiddle: (bool pressed) => _setButton(11, pressed),
+                    onRight: (bool pressed) => _setButton(7, pressed),
+                    onSystem: (bool pressed) => _setButton(10, pressed),
                   ),
                 ),
 
-                // ABXY : vrai losange Xbox, pas une grille carrée.
+                // Boutons de façade : symboles propres au profil, finition commune.
                 Positioned(
-                  right: width * 0.045,
-                  top: bodyTop + bodyHeight * 0.015,
+                  right: width * layout.faceRightFactor,
+                  top: bodyTop + bodyHeight * layout.faceTopFactor,
                   child: _AbxyPad(
                     size: abxySize,
                     pressed: <int, bool>{
@@ -1199,14 +1318,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       2: (_state.buttons & (1 << 2)) != 0,
                       3: (_state.buttons & (1 << 3)) != 0,
                     },
+                    topLabel: profile.faceTop,
+                    rightLabel: profile.faceRight,
+                    bottomLabel: profile.faceBottom,
+                    leftLabel: profile.faceLeft,
                     onChanged: _setButton,
                   ),
                 ),
 
                 // Stick droit : position basse et plus proche du centre.
                 Positioned(
-                  right: width * 0.22,
-                  top: bodyTop + bodyHeight * 0.53,
+                  right: width * layout.rightStickRightFactor,
+                  top: bodyTop + bodyHeight * layout.rightStickTopFactor,
                   child: _Stick(
                     label: 'R STICK',
                     x: _state.rx,
@@ -1215,6 +1338,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     sensitivity: _stickSensitivity,
                     deadZone: _stickDeadZone,
                     onChanged: _setRightStick,
+                    clickLabel: 'R3',
+                    clickPressed: (_state.buttons & (1 << 9)) != 0,
+                    onClickChanged: (bool pressed) => _setButton(9, pressed),
                   ),
                 ),
               ],
@@ -1235,6 +1361,7 @@ class _SettingsSlider extends StatelessWidget {
   final int divisions;
   final String valueLabel;
   final ValueChanged<double> onChanged;
+  final bool enabled;
 
   const _SettingsSlider({
     required this.title,
@@ -1245,6 +1372,7 @@ class _SettingsSlider extends StatelessWidget {
     required this.divisions,
     required this.valueLabel,
     required this.onChanged,
+    this.enabled = true,
   });
 
   @override
@@ -1264,22 +1392,22 @@ class _SettingsSlider extends StatelessWidget {
               ),
               Text(
                 valueLabel,
-                style: const TextStyle(
-                  color: _accent,
+                style: TextStyle(
+                  color: enabled ? _accent : _muted,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 2),
-          Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
+          Text(subtitle, style: TextStyle(color: _muted, fontSize: 11)),
           Slider(
             value: value.clamp(min, max).toDouble(),
             min: min,
             max: max,
             divisions: divisions,
             activeColor: _accent,
-            onChanged: onChanged,
+            onChanged: enabled ? onChanged : null,
           ),
         ],
       ),
@@ -1337,6 +1465,7 @@ class _ShoulderCluster extends StatelessWidget {
   final bool bumperPressed;
   final double width;
   final double sensitivity;
+  final bool digitalTrigger;
   final ValueChanged<int> onTriggerChanged;
   final ValueChanged<bool> onBumperChanged;
 
@@ -1347,6 +1476,7 @@ class _ShoulderCluster extends StatelessWidget {
     required this.bumperPressed,
     required this.width,
     required this.sensitivity,
+    required this.digitalTrigger,
     required this.onTriggerChanged,
     required this.onBumperChanged,
   });
@@ -1363,15 +1493,16 @@ class _ShoulderCluster extends StatelessWidget {
             value: triggerValue,
             width: width,
             sensitivity: sensitivity,
+            digital: digitalTrigger,
             onChanged: onTriggerChanged,
           ),
           const SizedBox(height: 5),
           _TouchButton(
             width: width,
-            height: 29 * (width / 132),
+            height: 30 * (width / 138),
             radius: BorderRadius.circular(9),
             color: _surfaceRaised,
-            pressedColor: const Color(0xFF3A7954),
+            pressedColor: AppTheme.current.controlPressed,
             borderColor: Colors.white24,
             pressedBorderColor: _accent,
             pressed: bumperPressed,
@@ -1396,6 +1527,7 @@ class _AnalogTrigger extends StatefulWidget {
   final int value;
   final double width;
   final double sensitivity;
+  final bool digital;
   final ValueChanged<int> onChanged;
 
   const _AnalogTrigger({
@@ -1403,6 +1535,7 @@ class _AnalogTrigger extends StatefulWidget {
     required this.value,
     required this.width,
     required this.sensitivity,
+    required this.digital,
     required this.onChanged,
   });
 
@@ -1444,23 +1577,28 @@ class _AnalogTriggerState extends State<_AnalogTrigger> {
 
     return SizedBox(
       width: widget.width,
-      height: 25 * (widget.width / 132),
+      height: 29 * (widget.width / 138),
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: (PointerDownEvent event) {
           if (_activePointer != null) return;
           _activePointer = event.pointer;
-          _update(event);
+          if (widget.digital) {
+            widget.onChanged(255);
+          } else {
+            _update(event);
+          }
         },
         onPointerMove: (PointerMoveEvent event) {
-          if (event.pointer == _activePointer) _update(event);
+          if (event.pointer != _activePointer || widget.digital) return;
+          _update(event);
         },
-        onPointerUp: (PointerUpEvent event) {
+        onPointerUp: (PointerEvent event) {
           if (event.pointer != _activePointer) return;
           _activePointer = null;
           widget.onChanged(0);
         },
-        onPointerCancel: (PointerCancelEvent event) {
+        onPointerCancel: (PointerEvent event) {
           if (event.pointer != _activePointer) return;
           _activePointer = null;
           widget.onChanged(0);
@@ -1469,7 +1607,7 @@ class _AnalogTriggerState extends State<_AnalogTrigger> {
           borderRadius: BorderRadius.circular(8),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFF27332C),
+              color: AppTheme.current.triggerTrack,
               border: Border.all(color: Colors.white24),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -1481,14 +1619,14 @@ class _AnalogTriggerState extends State<_AnalogTrigger> {
                     duration: const Duration(milliseconds: 85),
                     curve: Curves.easeOutCubic,
                     width: widget.width * progress,
-                    height: 25 * (widget.width / 132),
+                    height: 29 * (widget.width / 138),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(7),
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: <Color>[
-                          Color(0xFF347C50),
-                          Color(0xFF67E69A),
-                          Color(0xFF347C50),
+                          AppTheme.current.triggerStart,
+                          AppTheme.current.triggerMid,
+                          AppTheme.current.triggerEnd,
                         ],
                       ),
                       boxShadow: progress > 0.02
@@ -1535,6 +1673,7 @@ class _TouchButton extends StatefulWidget {
   final ValueChanged<bool> onChanged;
   final Widget child;
   final List<BoxShadow>? boxShadow;
+  final bool hapticOnPress;
 
   const _TouchButton({
     required this.width,
@@ -1548,6 +1687,7 @@ class _TouchButton extends StatefulWidget {
     required this.onChanged,
     required this.child,
     this.boxShadow,
+    this.hapticOnPress = false,
   });
 
   @override
@@ -1560,7 +1700,13 @@ class _TouchButtonState extends State<_TouchButton> {
   void _down(PointerDownEvent event) {
     final bool wasEmpty = _pointers.isEmpty;
     _pointers.add(event.pointer);
-    if (wasEmpty) widget.onChanged(true);
+    if (wasEmpty) {
+      if (widget.hapticOnPress) {
+        // Retour haptique léger pour les clics de stick L3/R3.
+        unawaited(HapticFeedback.selectionClick().catchError((Object _) {}));
+      }
+      widget.onChanged(true);
+    }
   }
 
   void _up(PointerEvent event) {
@@ -1622,49 +1768,55 @@ class _DPad extends StatelessWidget {
   final double size;
   final List<bool> directions;
   final void Function(int index, bool pressed) onChanged;
+  final bool separated;
 
   const _DPad({
     required this.size,
     required this.directions,
     required this.onChanged,
+    this.separated = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final double cell = size / 3;
     final double inner = cell * 0.94;
+
     return SizedBox(
       width: size,
       height: size,
       child: Stack(
         children: <Widget>[
-          // Base en croix, plus proche du D-pad facetté d'une manette Xbox.
-          Positioned(
-            left: cell,
-            top: 1,
-            width: cell,
-            height: size - 2,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xFF252D29),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: Colors.white10),
+          // La disposition Xbox conserve sa base directionnelle en croix.
+          // Sony et Nintendo affichent quatre touches distinctes.
+          if (!separated)
+            Positioned(
+              left: cell,
+              top: 1,
+              width: cell,
+              height: size - 2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppTheme.current.dpadBase,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: Colors.white10),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            left: 1,
-            top: cell,
-            width: size - 2,
-            height: cell,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xFF252D29),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: Colors.white10),
+          if (!separated)
+            Positioned(
+              left: 1,
+              top: cell,
+              width: size - 2,
+              height: cell,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppTheme.current.dpadBase,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: Colors.white10),
+                ),
               ),
             ),
-          ),
           Positioned(
             left: cell + (cell - inner) / 2,
             top: (cell - inner) / 2,
@@ -1672,8 +1824,8 @@ class _DPad extends StatelessWidget {
               width: inner,
               height: inner,
               radius: BorderRadius.circular(10),
-              color: const Color(0xFF39443E),
-              pressedColor: const Color(0xFF4B795D),
+              color: AppTheme.current.controlSurface,
+              pressedColor: AppTheme.current.dpadPressed,
               borderColor: Colors.white12,
               pressedBorderColor: _accent,
               pressed: directions[0],
@@ -1688,8 +1840,8 @@ class _DPad extends StatelessWidget {
               width: inner,
               height: inner,
               radius: BorderRadius.circular(10),
-              color: const Color(0xFF39443E),
-              pressedColor: const Color(0xFF4B795D),
+              color: AppTheme.current.controlSurface,
+              pressedColor: AppTheme.current.dpadPressed,
               borderColor: Colors.white12,
               pressedBorderColor: _accent,
               pressed: directions[1],
@@ -1704,8 +1856,8 @@ class _DPad extends StatelessWidget {
               width: inner,
               height: inner,
               radius: BorderRadius.circular(10),
-              color: const Color(0xFF39443E),
-              pressedColor: const Color(0xFF4B795D),
+              color: AppTheme.current.controlSurface,
+              pressedColor: AppTheme.current.dpadPressed,
               borderColor: Colors.white12,
               pressedBorderColor: _accent,
               pressed: directions[2],
@@ -1720,8 +1872,8 @@ class _DPad extends StatelessWidget {
               width: inner,
               height: inner,
               radius: BorderRadius.circular(10),
-              color: const Color(0xFF39443E),
-              pressedColor: const Color(0xFF4B795D),
+              color: AppTheme.current.controlSurface,
+              pressedColor: AppTheme.current.dpadPressed,
               borderColor: Colors.white12,
               pressedBorderColor: _accent,
               pressed: directions[3],
@@ -1729,21 +1881,22 @@ class _DPad extends StatelessWidget {
               child: const Icon(Icons.keyboard_arrow_left_rounded, size: 23),
             ),
           ),
-          Positioned(
-            left: cell + (cell - 20 * (size / 124)) / 2,
-            top: cell + (cell - 20 * (size / 124)) / 2,
-            child: IgnorePointer(
-              child: Container(
-                width: 20 * (size / 124),
-                height: 20 * (size / 124),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF171D19),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white12),
+          if (!separated)
+            Positioned(
+              left: cell + (cell - 20 * (size / 124)) / 2,
+              top: cell + (cell - 20 * (size / 124)) / 2,
+              child: IgnorePointer(
+                child: Container(
+                  width: 20 * (size / 124),
+                  height: 20 * (size / 124),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF171D19),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white12),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1753,48 +1906,82 @@ class _DPad extends StatelessWidget {
 class _AbxyPad extends StatelessWidget {
   final double size;
   final Map<int, bool> pressed;
+  final String topLabel;
+  final String rightLabel;
+  final String bottomLabel;
+  final String leftLabel;
   final void Function(int index, bool value) onChanged;
 
   const _AbxyPad({
     required this.size,
     required this.pressed,
+    required this.topLabel,
+    required this.rightLabel,
+    required this.bottomLabel,
+    required this.leftLabel,
     required this.onChanged,
   });
+
+  Widget _faceGlyph(String label, double buttonSize) {
+    final PlayStationButtonSymbol? symbol = switch (label) {
+      '△' => PlayStationButtonSymbol.triangle,
+      '○' => PlayStationButtonSymbol.circle,
+      '×' => PlayStationButtonSymbol.cross,
+      '□' => PlayStationButtonSymbol.square,
+      _ => null,
+    };
+
+    if (symbol != null) {
+      return PlayStationButtonGlyph(
+        symbol: symbol,
+        size: buttonSize * 0.72,
+        color: const Color(0xFFE8EEE9),
+      );
+    }
+
+    return Text(
+      label,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        height: 1.0,
+        shadows: <Shadow>[
+          Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+    );
+  }
 
   Widget _button({
     required int index,
     required String label,
-    required Color color,
     required double buttonSize,
   }) {
     return _TouchButton(
       width: buttonSize,
       height: buttonSize,
       radius: BorderRadius.circular(buttonSize),
-      color: color.withValues(alpha: 0.92),
-      pressedColor: color,
-      borderColor: Colors.white38,
-      pressedBorderColor: Colors.white,
+      color: AppTheme.current.faceSurface,
+      pressedColor: AppTheme.current.facePressed,
+      borderColor: AppTheme.current.controlBorder,
+      pressedBorderColor: _accent,
       pressed: pressed[index] ?? false,
       onChanged: (bool value) => onChanged(index, value),
       boxShadow: <BoxShadow>[
         BoxShadow(
-          color: color.withValues(alpha: 0.18),
+          color: Colors.black.withValues(alpha: 0.34),
           blurRadius: 8,
           offset: const Offset(0, 3),
         ),
-      ],
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w900,
-          shadows: <Shadow>[
-            Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
-          ],
+        BoxShadow(
+          color: Colors.white.withValues(alpha: 0.045),
+          blurRadius: 1,
+          offset: const Offset(0, -1),
         ),
-      ),
+      ],
+      child: _faceGlyph(label, buttonSize),
     );
   }
 
@@ -1807,47 +1994,31 @@ class _AbxyPad extends StatelessWidget {
       height: size,
       child: Stack(
         children: <Widget>[
-          // Y en haut.
+          // Bouton du haut.
           Positioned(
             left: (size - buttonSize) / 2,
             top: 0,
-            child: _button(
-              index: 3,
-              label: 'Y',
-              color: const Color(0xFFD1A92E),
-              buttonSize: buttonSize,
-            ),
+            child: _button(index: 3, label: topLabel, buttonSize: buttonSize),
           ),
-          // X à gauche.
+          // Bouton de gauche.
           Positioned(
             left: 0,
             top: (size - buttonSize) / 2,
-            child: _button(
-              index: 2,
-              label: 'X',
-              color: const Color(0xFF287DBB),
-              buttonSize: buttonSize,
-            ),
+            child: _button(index: 2, label: leftLabel, buttonSize: buttonSize),
           ),
-          // B à droite.
+          // Bouton de droite.
           Positioned(
             right: 0,
             top: (size - buttonSize) / 2,
-            child: _button(
-              index: 1,
-              label: 'B',
-              color: const Color(0xFFC64A43),
-              buttonSize: buttonSize,
-            ),
+            child: _button(index: 1, label: rightLabel, buttonSize: buttonSize),
           ),
-          // A en bas.
+          // Bouton du bas.
           Positioned(
             left: (size - buttonSize) / 2,
             bottom: 0,
             child: _button(
               index: 0,
-              label: 'A',
-              color: const Color(0xFF29945A),
+              label: bottomLabel,
               buttonSize: buttonSize,
             ),
           ),
@@ -1873,107 +2044,239 @@ class _AbxyPad extends StatelessWidget {
 
 class _CenterControls extends StatelessWidget {
   final double scale;
-  final bool viewPressed;
-  final bool menuPressed;
-  final bool guidePressed;
-  final bool sharePressed;
-  final ValueChanged<bool> onShare;
-  final ValueChanged<bool> onView;
-  final ValueChanged<bool> onMenu;
-  final ValueChanged<bool> onGuide;
+  final ControllerProfile profile;
+  final bool leftPressed;
+  final bool middlePressed;
+  final bool rightPressed;
+  final bool systemPressed;
+  final ValueChanged<bool> onLeft;
+  final ValueChanged<bool> onMiddle;
+  final ValueChanged<bool> onRight;
+  final ValueChanged<bool> onSystem;
 
   const _CenterControls({
     required this.scale,
-    required this.viewPressed,
-    required this.menuPressed,
-    required this.guidePressed,
-    required this.sharePressed,
-    required this.onShare,
-    required this.onView,
-    required this.onMenu,
-    required this.onGuide,
+    required this.profile,
+    required this.leftPressed,
+    required this.middlePressed,
+    required this.rightPressed,
+    required this.systemPressed,
+    required this.onLeft,
+    required this.onMiddle,
+    required this.onRight,
+    required this.onSystem,
   });
+
+  Widget _content(CenterControlKind kind, double size) {
+    final double iconSize = size * 0.56;
+    switch (kind) {
+      case CenterControlKind.view:
+        return CustomPaint(
+          size: Size(iconSize, iconSize),
+          painter: _ViewGlyphPainter(),
+        );
+      case CenterControlKind.share:
+        return Icon(Icons.ios_share_rounded, size: iconSize * 0.88);
+      case CenterControlKind.menu:
+        return Icon(Icons.menu_rounded, size: iconSize * 0.92);
+      case CenterControlKind.options:
+        return Icon(Icons.more_horiz_rounded, size: iconSize * 1.12);
+      case CenterControlKind.xboxGuide:
+        return CustomPaint(
+          size: Size(size * 0.62, size * 0.62),
+          painter: _XboxGuidePainter(),
+        );
+      case CenterControlKind.playStation:
+        return Text(
+          'PS',
+          style: TextStyle(
+            fontSize: size * 0.36,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.6,
+            shadows: const <Shadow>[
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+        );
+      case CenterControlKind.home:
+        return Icon(Icons.home_rounded, size: iconSize);
+      case CenterControlKind.minus:
+        return Text(
+          '−',
+          style: TextStyle(fontSize: size * 0.62, fontWeight: FontWeight.w800),
+        );
+      case CenterControlKind.plus:
+        return Text(
+          '+',
+          style: TextStyle(fontSize: size * 0.62, fontWeight: FontWeight.w800),
+        );
+      case CenterControlKind.consumerRecord:
+        return Icon(
+          Icons.fiber_manual_record_rounded,
+          color: const Color(0xFFFF7770),
+          size: iconSize * 0.78,
+        );
+    }
+  }
+
+  Widget _button({
+    required double size,
+    required String tooltip,
+    required bool pressed,
+    required ValueChanged<bool> onChanged,
+    required Widget child,
+    bool system = false,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: _TouchButton(
+        width: size,
+        height: size,
+        radius: BorderRadius.circular(size * (system ? 0.38 : 0.34)),
+        color: AppTheme.current.controlSurface,
+        pressedColor: AppTheme.current.centerPressed,
+        borderColor: AppTheme.current.controlBorder,
+        pressedBorderColor: _accent,
+        pressed: pressed,
+        onChanged: onChanged,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.30),
+            blurRadius: 7,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.045),
+            blurRadius: 1,
+            offset: const Offset(0, -1),
+          ),
+        ],
+        child: child,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double small = 31 * scale;
-    final double guide = 37 * scale;
+    final double small = 35 * scale;
+    final double system = 41 * scale;
+    final CenterControlKind? middleKind = profile.middleKind;
+    const double clusterWidth = 166;
+
     return SizedBox(
-      width: 154 * scale,
-      height: 78 * scale,
+      width: clusterWidth * scale,
+      height: 82 * scale,
       child: Stack(
         children: <Widget>[
           Positioned(
-            left: (154 * scale - guide) / 2,
+            left: (clusterWidth * scale - system) / 2,
             top: 0,
-            child: _TouchButton(
-              width: guide,
-              height: guide,
-              radius: BorderRadius.circular(guide),
-              color: const Color(0xFF27332C),
-              pressedColor: const Color(0xFF36794F),
-              borderColor: Colors.white24,
-              pressedBorderColor: _accent,
-              pressed: guidePressed,
-              onChanged: onGuide,
-              child: CustomPaint(
-                size: Size(guide * 0.62, guide * 0.62),
-                painter: _XboxGuidePainter(),
+            child: _button(
+              size: system,
+              tooltip: profile.systemTooltip,
+              pressed: systemPressed,
+              onChanged: onSystem,
+              system: true,
+              child: _content(profile.systemKind, system),
+            ),
+          ),
+          Positioned(
+            left: 7 * scale,
+            bottom: 2 * scale,
+            child: _button(
+              size: small,
+              tooltip: profile.centerLeftTooltip,
+              pressed: leftPressed,
+              onChanged: onLeft,
+              child: _content(profile.centerLeftKind, small),
+            ),
+          ),
+          if (middleKind != null)
+            Positioned(
+              left: (clusterWidth * scale - small) / 2,
+              bottom: 2 * scale,
+              child: _button(
+                size: small,
+                tooltip: profile.middleTooltip ?? '',
+                pressed: middlePressed,
+                onChanged: onMiddle,
+                child: _content(middleKind, small),
               ),
             ),
-          ),
           Positioned(
-            left: 13 * scale,
+            right: 7 * scale,
             bottom: 2 * scale,
-            child: _TouchButton(
-              width: small,
-              height: small,
-              radius: BorderRadius.circular(9 * scale),
-              color: const Color(0xFF27332C),
-              pressedColor: const Color(0xFF36794F),
-              borderColor: Colors.white24,
-              pressedBorderColor: _accent,
-              pressed: viewPressed,
-              onChanged: onView,
-              child: CustomPaint(
-                size: Size(16 * scale, 16 * scale),
-                painter: _ViewGlyphPainter(),
-              ),
-            ),
-          ),
-          Positioned(
-            left: (154 * scale - small) / 2,
-            bottom: 2 * scale,
-            child: _TouchButton(
-              width: small,
-              height: small,
-              radius: BorderRadius.circular(9 * scale),
-              color: const Color(0xFF27332C),
-              pressedColor: const Color(0xFF36794F),
-              borderColor: Colors.white24,
-              pressedBorderColor: _accent,
-              pressed: sharePressed,
-              onChanged: onShare,
-              child: Icon(Icons.ios_share_rounded, size: 17 * scale),
-            ),
-          ),
-          Positioned(
-            right: 13 * scale,
-            bottom: 2 * scale,
-            child: _TouchButton(
-              width: small,
-              height: small,
-              radius: BorderRadius.circular(9 * scale),
-              color: const Color(0xFF27332C),
-              pressedColor: const Color(0xFF36794F),
-              borderColor: Colors.white24,
-              pressedBorderColor: _accent,
-              pressed: menuPressed,
-              onChanged: onMenu,
-              child: Icon(Icons.menu_rounded, size: 19 * scale),
+            child: _button(
+              size: small,
+              tooltip: profile.centerRightTooltip,
+              pressed: rightPressed,
+              onChanged: onRight,
+              child: _content(profile.centerRightKind, small),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Aperçu visuel du pavé tactile DualShock 4.
+/// Il reste volontairement non interactif tant que le descripteur HID natif
+/// et le protocole de transmission des coordonnées ne sont pas implémentés.
+class _TouchpadPreview extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _TouchpadPreview({required this.width, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Pavé tactile DualShock 4 : prise en charge à venir',
+      child: Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF202824),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppTheme.current.controlBorder, width: 1.2),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              'PAVÉ TACTILE',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.58),
+                fontSize: math.max(8.0, height * 0.19).toDouble(),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'À VENIR',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.30),
+                fontSize: math.max(6.0, height * 0.14).toDouble(),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2062,6 +2365,9 @@ class _Stick extends StatefulWidget {
   final double sensitivity;
   final double deadZone;
   final void Function(double x, double y) onChanged;
+  final String clickLabel;
+  final bool clickPressed;
+  final ValueChanged<bool> onClickChanged;
 
   const _Stick({
     required this.label,
@@ -2071,6 +2377,9 @@ class _Stick extends StatefulWidget {
     required this.sensitivity,
     required this.deadZone,
     required this.onChanged,
+    required this.clickLabel,
+    required this.clickPressed,
+    required this.onClickChanged,
   });
 
   @override
@@ -2129,113 +2438,149 @@ class _StickState extends State<_Stick> {
 
   @override
   Widget build(BuildContext context) {
+    final AppPalette palette = AppTheme.current;
     final Offset knob = _knobOffset();
     final double knobSize = widget.size * 0.40;
     final double center = widget.size / 2;
 
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (PointerDownEvent event) {
-          if (_activePointer != null) return;
-          _activePointer = event.pointer;
-          _move(event);
-        },
-        onPointerMove: (PointerMoveEvent event) {
-          if (event.pointer == _activePointer) _move(event);
-        },
-        onPointerUp: _release,
-        onPointerCancel: _release,
-        child: Stack(
-          children: <Widget>[
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                  colors: <Color>[Color(0xFF303B34), Color(0xFF1A211D)],
-                ),
-                border: Border.all(color: const Color(0xFF607368), width: 1.5),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.36),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-            ),
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.all(widget.size * 0.12),
-                child: DecoratedBox(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (PointerDownEvent event) {
+              if (_activePointer != null) return;
+              _activePointer = event.pointer;
+              _move(event);
+            },
+            onPointerMove: (PointerMoveEvent event) {
+              if (event.pointer == _activePointer) _move(event);
+            },
+            onPointerUp: _release,
+            onPointerCancel: _release,
+            child: Stack(
+              children: <Widget>[
+                Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: <Color>[
+                        palette.stickWellStart,
+                        palette.stickWellEnd,
+                      ],
+                    ),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: palette.stickWellBorder,
+                      width: 1.5,
+                    ),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.36),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.all(widget.size * 0.12),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: center + knob.dx - knobSize / 2,
-              top: center + knob.dy - knobSize / 2,
-              width: knobSize,
-              height: knobSize,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: <Color>[Color(0xFF53675A), Color(0xFF202923)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(
-                    color: const Color(0xFF9AC5A7),
-                    width: 1.4,
-                  ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.48),
-                      blurRadius: 7,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Container(
-                    width: knobSize * 0.16,
-                    height: knobSize * 0.16,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF789783),
+                Positioned(
+                  left: center + knob.dx - knobSize / 2,
+                  top: center + knob.dy - knobSize / 2,
+                  width: knobSize,
+                  height: knobSize,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: <Color>[
+                          palette.stickKnobStart,
+                          palette.stickKnobEnd,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      border: Border.all(
+                        color: palette.stickKnobBorder,
+                        width: 1.4,
+                      ),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.48),
+                          blurRadius: 7,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: knobSize * 0.16,
+                        height: knobSize * 0.16,
+                        decoration: BoxDecoration(
+                          color: palette.stickKnobCenter,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: widget.size * 0.075,
-              child: IgnorePointer(
-                child: Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.48),
-                    fontSize: widget.size * 0.075,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: widget.size * 0.075,
+                  child: IgnorePointer(
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.48),
+                        fontSize: widget.size * 0.075,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 4),
+        _TouchButton(
+          width: widget.size * 0.38,
+          height: widget.size * 0.16,
+          radius: BorderRadius.circular(7),
+          color: _surfaceRaised,
+          pressedColor: AppTheme.current.controlPressed,
+          borderColor: Colors.white24,
+          pressedBorderColor: _accent,
+          pressed: widget.clickPressed,
+          onChanged: widget.onClickChanged,
+          hapticOnPress: true,
+          child: Text(
+            widget.clickLabel,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

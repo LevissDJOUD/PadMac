@@ -1,23 +1,28 @@
 # Notices relatives aux logiciels tiers
 
-PadMac s'appuie sur des outils, packages et composants développés par des tiers. Ce fichier rassemble les principales attributions identifiées pour le projet. Chaque composant reste soumis à sa propre licence ; la licence de PadMac ne remplace pas les conditions des composants tiers.
+PadMac s'appuie sur Flutter, des packages Dart/Flutter et des composants fournis par des tiers. Ce document rassemble les principales attributions identifiées pour le projet au moment de la préparation de la version **1.1.0**.
 
-> **Portée de cet inventaire :** les entrées ci-dessous recensent les dépendances directes identifiées dans le code et la configuration décrits pour PadMac. Les versions exactes doivent être vérifiées dans `pubspec.lock`. Les dépendances transitives et les éventuels composants natifs Android doivent également être contrôlés avant une publication officielle. Cet inventaire ne doit pas être considéré comme exhaustif tant que cet audit n'a pas été effectué.
+Chaque composant reste soumis à sa propre licence. La licence de PadMac ne remplace ni ne modifie les conditions applicables aux composants tiers.
 
-## Dépendances Flutter et Dart identifiées
+> **Portée de cet inventaire :** les packages listés ci-dessous sont les dépendances directes identifiées à partir du code et des informations de configuration communiqués pour PadMac. Les versions réellement résolues doivent être confirmées dans `pubspec.lock`. Cet inventaire n'est pas une liste exhaustive des dépendances transitives, des composants natifs Android ou des éléments éventuellement fournis par le SDK Flutter.
 
-| Composant | Utilisation dans PadMac | Version utilisée | Licence | Source |
-|---|---|---|---|---|
-| [`material_ui`](https://pub.dev/packages/material_ui) | Composants d'interface Material | Voir `pubspec.lock` | BSD 3-Clause | [Dépôt du package](https://github.com/flutter/packages) |
-| [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | Ressources d'icônes Cupertino | Voir `pubspec.lock` | MIT | [Page du package](https://pub.dev/packages/cupertino_icons) |
-| [`permission_handler`](https://pub.dev/packages/permission_handler) | Demande et vérification des autorisations Android | Voir `pubspec.lock` | MIT | [Dépôt du package](https://github.com/Baseflow/flutter-permission-handler) |
-| [`flutter_launcher_icons`](https://pub.dev/packages/flutter_launcher_icons) | Génération des icônes de l'application (outil de développement) | Voir `pubspec.lock` | MIT | [Dépôt du package](https://github.com/fluttercommunity/flutter_launcher_icons) |
+## Dépendances directes Flutter et Dart
 
-Les licences indiquées correspondent aux métadonnées de licence publiées pour ces packages. Pour la distribution, conserve les versions exactes résolues dans `pubspec.lock` et vérifie les fichiers de licence fournis avec ces versions.
+| Composant | Utilisation dans PadMac | Type | Version utilisée | Licence | Source |
+|---|---|---|---|---|---|
+| [`material_ui`](https://pub.dev/packages/material_ui) | Widgets Material, thèmes, composants et éléments d'interface | Exécution | Voir `pubspec.lock` | BSD-3-Clause | [Dépôt Flutter Packages](https://github.com/flutter/packages/tree/main/packages/material_ui) |
+| [`cupertino_icons`](https://pub.dev/packages/cupertino_icons) | Ressources d'icônes Cupertino | Exécution / ressources | Voir `pubspec.lock` | MIT | [Page du package](https://pub.dev/packages/cupertino_icons) |
+| [`permission_handler`](https://pub.dev/packages/permission_handler) | Demande et vérification des autorisations Android, notamment Bluetooth et notifications | Exécution | Voir `pubspec.lock` | MIT | [Dépôt Baseflow](https://github.com/Baseflow/flutter-permission-handler) |
+| [`shared_preferences`](https://pub.dev/packages/shared_preferences) | Sauvegarde et restauration du profil de manette sélectionné | Exécution | Voir `pubspec.lock` | BSD-3-Clause | [Dépôt Flutter Packages](https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences) |
+| [`flutter_launcher_icons`](https://pub.dev/packages/flutter_launcher_icons) | Génération des icônes de l'application à partir des ressources du projet | Développement uniquement | Voir `pubspec.lock` | MIT | [Dépôt Flutter Community](https://github.com/fluttercommunity/flutter_launcher_icons) |
+
+Les licences indiquées correspondent aux métadonnées de licence publiées pour ces packages au moment de la vérification. Pour toute distribution, conserve les versions exactes résolues dans `pubspec.lock` et vérifie le fichier de licence fourni avec chaque version effectivement utilisée.
+
+`flutter_launcher_icons` est un outil de génération utilisé pendant le développement. Il n'est normalement pas embarqué comme dépendance d'exécution dans l'APK final. Il est néanmoins recensé ici pour documenter les outils du projet.
 
 ## Dépendances transitives
 
-Les packages listés dans `pubspec.lock` peuvent eux-mêmes dépendre d'autres packages. Leurs licences et avis de copyright doivent être conservés conformément à leurs conditions respectives.
+Les packages directs peuvent dépendre d'autres packages qui sont eux-mêmes intégrés à l'application ou utilisés pendant sa compilation. Leurs licences et avis de copyright doivent être examinés et conservés conformément à leurs conditions respectives.
 
 Pour afficher l'arbre des dépendances depuis la racine du projet :
 
@@ -25,28 +30,60 @@ Pour afficher l'arbre des dépendances depuis la racine du projet :
 flutter pub deps --style=compact
 ```
 
-Avant une release, complète cet inventaire avec les dépendances transitives nécessitant une attribution distincte et vérifie les licences correspondantes dans les sources des packages résolus.
+Avant une publication, examine les dépendances résolues dans `pubspec.lock`, identifie celles qui sont distribuées avec l'application et complète les attributions lorsque leurs licences l'exigent. Ne déduis pas les versions utilisées de la dernière version affichée sur pub.dev : seule la résolution du projet fait foi.
 
-## Logiciels externes requis
+## Logiciel externe requis
 
 ### OpenJoystickDriver (OJD)
 
-[OpenJoystickDriver](https://github.com/GuardianOfDreams/OpenJoystickDriver) est une application macOS externe avec laquelle PadMac est conçu pour fonctionner. OJD n'est pas développé par PadMac et n'est pas inclus dans le dépôt PadMac comme composant redistribué par ce projet.
+[OpenJoystickDriver](https://github.com/xsyetopz/OpenJoystickDriver) est un logiciel macOS externe avec lequel PadMac est conçu pour fonctionner. OJD reçoit les commandes du contrôleur Bluetooth et expose un périphérique virtuel à macOS. Il est développé et distribué indépendamment de PadMac.
 
-OJD est distribué sous sa propre licence. Consulte le [dépôt officiel](https://github.com/GuardianOfDreams/OpenJoystickDriver) et les conditions de licence correspondant à la version utilisée.
+PadMac ne contient pas et ne redistribue pas l'application OpenJoystickDriver. L'utilisateur doit l'obtenir séparément depuis le [dépôt officiel](https://github.com/xsyetopz/OpenJoystickDriver) et respecter les conditions applicables à la version qu'il installe.
 
-## Composants natifs et ressources
+Au moment de la préparation de PadMac 1.1.0, le fichier [`LICENSE` de la branche principale d'OJD](https://github.com/xsyetopz/OpenJoystickDriver/blob/main/LICENSE) présente la **Mozilla Public License 2.0 (MPL-2.0)**. La licence d'une version publiée peut différer de celle de la branche principale ou avoir évolué dans le temps : consulte toujours le fichier `LICENSE` associé à la version exacte utilisée.
 
-Les dépendances natives éventuellement déclarées dans les fichiers Gradle, ainsi que les polices, images, sons, icônes ou autres ressources provenant de tiers, doivent être ajoutés ici avec leur auteur, leur source et leur licence.
+La licence d'OJD s'applique à OJD et à ses propres composants couverts. Elle ne remplace pas la licence de PadMac et ne signifie pas que le code d'OJD est intégré au dépôt PadMac.
 
-| Composant ou ressource | Emplacement dans le projet | Auteur / titulaire | Licence | Source |
+## SDK et outils de plateforme
+
+PadMac est développé avec Flutter et Dart et compile une application Android qui comprend du code natif Kotlin/Android pour la communication Bluetooth HID et les échanges avec Flutter.
+
+Le SDK Flutter, le SDK Android, Gradle, Kotlin, le plugin Android Gradle et les composants natifs utilisés par les plugins peuvent apporter leurs propres licences ou notices. Ils doivent être identifiés à partir des versions et fichiers réellement utilisés par le projet. Les notices produites ou fournies par les outils de compilation doivent être conservées lorsqu'elles sont requises.
+
+## Ressources graphiques et marques
+
+Les fichiers graphiques de PadMac identifiés dans le projet comprennent notamment :
+
+- `assets/images/padmac_brand_xbox.png`
+- `assets/images/padmac_brand_playstation.png`
+- `assets/images/padmac_brand_switch.png`
+- `assets/images/padmac_app_icon_512.png`
+
+Le présent inventaire ne leur attribue pas de licence tierce faute d'information sur leur création ou leur provenance. Si un fichier contient une illustration, une police, un pictogramme ou un élément visuel provenant d'un tiers, ajoute ici son auteur ou titulaire, sa source et sa licence, et conserve l'avis de copyright ou le fichier de licence requis.
+
+Les noms et marques **Xbox**, **PlayStation**, **Nintendo Switch**, **Android**, **macOS** et les autres marques de tiers appartiennent à leurs titulaires respectifs. Ils sont utilisés uniquement pour identifier les plateformes et dispositions concernées. PadMac n'est ni affilié à ces sociétés ni présenté comme un produit officiel de celles-ci.
+
+## Composants natifs et autres ressources à auditer
+
+Les dépendances déclarées dans les fichiers Gradle, les composants Android embarqués, ainsi que les polices, images, sons, icônes ou autres ressources provenant de tiers doivent être vérifiés avant de considérer cet inventaire comme exhaustif.
+
+| Composant ou ressource | Emplacement / méthode de vérification | Auteur / titulaire | Licence | État |
 |---|---|---|---|---|
-| À compléter après vérification des fichiers Android et des ressources | — | — | — | — |
+| Dépendances Gradle et AndroidX | `android/settings.gradle(.kts)`, `android/build.gradle(.kts)`, `android/app/build.gradle(.kts)` et éventuels fichiers de verrouillage | À identifier | À vérifier | Audit nécessaire |
+| Composants natifs apportés par les plugins Flutter | Plugins résolus dans `.flutter-plugins-dependencies` et `pubspec.lock` | À identifier | À vérifier | Audit nécessaire |
+| Ressources graphiques, polices et autres médias tiers | `assets/`, `android/app/src/main/res/` et autres répertoires de ressources | À identifier si applicable | À vérifier si applicable | À confirmer |
 
 ## Vérification avant publication
 
 - [ ] Comparer les dépendances déclarées dans `pubspec.yaml` avec celles résolues dans `pubspec.lock`.
-- [ ] Examiner les licences des dépendances directes et transitives.
-- [ ] Examiner les dépendances natives déclarées dans les fichiers Gradle.
-- [ ] Ajouter les attributions requises pour les images, polices, sons, icônes et autres ressources tierces.
+- [ ] Vérifier les licences des dépendances directes et transitives effectivement utilisées et distribuées.
+- [ ] Distinguer les dépendances d'exécution des outils de développement.
+- [ ] Examiner les dépendances natives déclarées dans les fichiers Gradle et les composants Android apportés par les plugins.
+- [ ] Vérifier la provenance et les licences des logos, icônes, polices, images, sons et autres ressources.
+- [ ] Vérifier la licence de la version exacte d'OpenJoystickDriver installée séparément par l'utilisateur.
 - [ ] Conserver les textes de licence et avis de copyright exigés par les auteurs des composants concernés.
+- [ ] Mettre à jour ce fichier à chaque ajout, suppression ou remplacement de dépendance ou de ressource tierce.
+
+---
+
+Cet inventaire est fourni à titre d'information et de traçabilité. Il ne constitue pas un audit juridique exhaustif. En cas de redistribution d'un composant tiers, les obligations de sa licence doivent être examinées à partir de la version réellement distribuée.
