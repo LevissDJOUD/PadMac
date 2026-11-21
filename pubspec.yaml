@@ -3,7 +3,7 @@ description: "PadMac transforme un téléphone Android en manette Bluetooth pour
 publish_to: 'none'
 
 # Version de l'application : version+numéro_de_build.
-version: 1.1.0+3
+version: 1.1.2+4
 
 environment:
   sdk: ^3.14.0

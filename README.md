@@ -2,7 +2,7 @@
 
 **PadMac transforme un téléphone Android en manette Bluetooth utilisable avec un Mac.** L'application propose trois dispositions tactiles inspirées des manettes **Xbox**, **PlayStation DualShock 4** et **Nintendo Switch Pro**. Les commandes sont transmises au Mac en Bluetooth HID ; [OpenJoystickDriver (OJD)](https://github.com/xsyetopz/OpenJoystickDriver) prend ensuite en charge le contrôleur et expose un périphérique virtuel à macOS.
 
-> **État du projet — v1.1.1 (build 3)** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
+> **État du projet — v1.1.2 (build 4)** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
 
 ## Fonctionnalités
 
@@ -14,7 +14,8 @@
 - Sticks analogiques avec réglages de taille, de sensibilité et de zone morte.
 - Gâchettes analogiques pour les profils Xbox et DualShock 4 ; gâchettes numériques pour le profil Switch Pro.
 - Retour visuel lors des pressions, avec jauges animées pour les gâchettes.
-- Retour haptique lors de l'activation des clics de sticks L3 et R3.
+- Retour haptique léger sur les boutons virtuels : boutons de façade, croix directionnelle, commandes centrales, boutons d'épaule et clics L3/R3.
+- Retour haptique au début de l'appui sur les gâchettes LT/RT, sans vibration répétée pendant le maintien.
 - Palette et logo adaptés au profil sélectionné : vert pour Xbox, bleu pour PlayStation et rouge pour Nintendo Switch Pro.
 - Sauvegarde du profil choisi et restauration automatique au prochain lancement.
 - Écrans de connexion, de manette et de paramètres.
@@ -22,6 +23,12 @@
 - Splash screen animé et identité visuelle PadMac adaptés au profil actif.
 - Journal d'événements pour faciliter le diagnostic de la connexion.
 - Mode de balayage automatique pour tester les entrées de la manette dans OJD.
+
+### Retour haptique
+
+PadMac fournit un retour haptique léger lors de l'activation des boutons virtuels (boutons de façade, croix directionnelle, commandes centrales, boutons d'épaule et clics L3/R3). Un retour est également déclenché au début de l'appui sur LT/RT. Il n'est pas répété en continu pendant le maintien d'une touche ou les variations de pression des gâchettes.
+
+Le déplacement continu des zones analogiques des sticks ne déclenche pas de vibration ; leurs clics L3/R3 en déclenchent une. La sensation ressentie dépend du matériel et des réglages de vibration Android.
 
 ### Particularités et limites des profils
 

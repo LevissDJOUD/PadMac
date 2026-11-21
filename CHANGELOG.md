@@ -8,6 +8,19 @@ Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 Aucun changement enregistré pour le moment.
 
+## [1.1.2] - 2026-11-21
+
+Mise à jour corrective qui étend le retour haptique aux commandes tactiles de la manette.
+
+### Ajouté
+
+- Retour haptique léger sur les boutons virtuels : boutons de façade, croix directionnelle, commandes centrales, boutons d’épaule et clics L3/R3.
+- Retour haptique au début de l’appui sur les gâchettes LT/RT, sans vibration répétée pendant le maintien ou les changements de pression.
+
+### Modifié
+
+- Harmonisation du retour haptique entre les commandes tactiles des trois profils de manette.
+
 ## [1.1.1] - 2026-11-21
 
 Mise à jour corrective et visuelle de l'interface, sans changement annoncé du protocole HID ni des profils de manette.

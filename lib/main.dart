@@ -1583,6 +1583,7 @@ class _AnalogTriggerState extends State<_AnalogTrigger> {
         onPointerDown: (PointerDownEvent event) {
           if (_activePointer != null) return;
           _activePointer = event.pointer;
+          unawaited(HapticFeedback.selectionClick().catchError((Object _) {}));
           if (widget.digital) {
             widget.onChanged(255);
           } else {
@@ -1687,7 +1688,7 @@ class _TouchButton extends StatefulWidget {
     required this.onChanged,
     required this.child,
     this.boxShadow,
-    this.hapticOnPress = false,
+    this.hapticOnPress = true,
   });
 
   @override
