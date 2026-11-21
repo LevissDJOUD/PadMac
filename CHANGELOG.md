@@ -8,6 +8,35 @@ Le format suit l'esprit de [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 Aucun changement enregistré pour le moment.
 
+## [1.2.0] - 2026-11-21
+
+Évolution fonctionnelle du profil PlayStation DualShock 4 avec l'activation du pavé tactile et une amélioration de son ergonomie.
+
+### Ajouté
+
+- Activation des gestes à un doigt sur le pavé tactile DualShock 4.
+- Conversion des déplacements tactiles en commandes analogiques X/Y du stick sélectionné.
+- Possibilité de choisir le stick piloté par le pavé tactile (gauche ou droit).
+- Réglage de la sensibilité du pavé tactile.
+- Gestion de priorité : le pavé tactile prend temporairement la main sur le stick ciblé pendant le contact, puis la commande physique reprend au relâchement.
+
+### Modifié
+
+- Agrandissement de la surface du pavé tactile DualShock 4 : largeur relative portée à 35 %, largeur maximale à 270 px et hauteur à 58 px.
+- Repositionnement vertical du pavé tactile légèrement vers le haut.
+- Mise à jour de la documentation des fonctionnalités et des limites du profil DualShock 4.
+
+### Technique
+
+- Conservation du rapport HID existant de 16 octets et de la transmission Bluetooth HID actuelle.
+- Aucun changement requis dans les services Kotlin, le manifeste Android ou les dépendances Flutter pour cette fonctionnalité.
+
+### Limites connues
+
+- Les gestes sont convertis en axes analogiques génériques ; les coordonnées multitouch natives du DualShock 4 ne sont pas transmises.
+- Le clic physique du pavé tactile n'est pas exposé comme bouton distinct.
+- La compatibilité effective reste dépendante de la détection du contrôleur et du profil virtuel configuré dans OpenJoystickDriver, ainsi que du jeu ou de l'application utilisé.
+
 ## [1.1.2] - 2026-11-21
 
 Mise à jour corrective qui étend le retour haptique aux commandes tactiles de la manette.

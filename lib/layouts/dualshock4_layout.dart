@@ -19,9 +19,9 @@ class DualShock4Layout {
     faceSizeFactor: 0.94,
     separatedDpad: true,
     showTouchpadPreview: true,
-    touchpadTopFactor: 0.035,
-    touchpadWidthFactor: 0.29,
-    touchpadMaxWidth: 224.0,
-    touchpadHeight: 43.0,
+    touchpadTopFactor: 0.01,
+    touchpadWidthFactor: 0.35,
+    touchpadMaxWidth: 270,
+    touchpadHeight: 60,
   );
 }

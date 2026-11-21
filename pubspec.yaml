@@ -1,9 +1,7 @@
 name: padmac
 description: "PadMac transforme un téléphone Android en manette Bluetooth pour Mac grâce à OpenJoystickDriver (OJD)."
 publish_to: 'none'
-
-# Version de l'application : version+numéro_de_build.
-version: 1.1.2+4
+version: 1.2.0+5
 
 environment:
   sdk: ^3.14.0

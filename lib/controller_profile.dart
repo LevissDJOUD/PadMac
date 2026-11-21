@@ -101,7 +101,7 @@ class ControllerProfile {
     id: ControllerProfileId.dualShock4,
     name: 'PlayStation (DualShock 4)',
     description:
-        'Disposition DualShock 4. L2 et R2 restent analogiques. Share, Options et PS sont affichés ; le clic du pavé tactile n’est pas disponible dans le rapport HID actuel.',
+        'Disposition DualShock 4. L2 et R2 restent analogiques. Share, Options et PS sont affichés. Le pavé convertit les glissements en axes du stick sélectionné ; les coordonnées multitouch natives et le clic DS4 ne sont pas transmis.',
     faceTop: '△',
     faceRight: '○',
     faceBottom: '×',

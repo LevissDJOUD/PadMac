@@ -2,7 +2,7 @@
 
 **PadMac transforme un téléphone Android en manette Bluetooth utilisable avec un Mac.** L'application propose trois dispositions tactiles inspirées des manettes **Xbox**, **PlayStation DualShock 4** et **Nintendo Switch Pro**. Les commandes sont transmises au Mac en Bluetooth HID ; [OpenJoystickDriver (OJD)](https://github.com/xsyetopz/OpenJoystickDriver) prend ensuite en charge le contrôleur et expose un périphérique virtuel à macOS.
 
-> **État du projet — v1.1.2 (build 4)** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
+> **État du projet — v1.2.0 (build 5)** : PadMac cible principalement le scénario **Android → Bluetooth HID → macOS avec OpenJoystickDriver**. La compatibilité avec Windows et avec d'autres pilotes de manette virtuelle n'est pas garantie. Windows n'est pas une plateforme officiellement prise en charge.
 
 ## Fonctionnalités
 
@@ -23,6 +23,9 @@
 - Splash screen animé et identité visuelle PadMac adaptés au profil actif.
 - Journal d'événements pour faciliter le diagnostic de la connexion.
 - Mode de balayage automatique pour tester les entrées de la manette dans OJD.
+- Pavé tactile DualShock 4 interactif : les glissements à un doigt sont convertis en commandes analogiques X/Y du stick sélectionné.
+- Choix du stick piloté par le pavé tactile (gauche ou droit) et réglage de sa sensibilité.
+- Priorité temporaire du pavé tactile sur le stick ciblé pendant le contact, avec reprise de la commande physique au relâchement.
 
 ### Retour haptique
 
@@ -33,7 +36,13 @@ Le déplacement continu des zones analogiques des sticks ne déclenche pas de vi
 ### Particularités et limites des profils
 
 - **Xbox** : disposition inspirée de la manette Xbox, avec gâchettes analogiques.
-- **PlayStation DualShock 4** : disposition et symboles PlayStation, avec gâchettes analogiques. Le pavé tactile est actuellement un aperçu visuel non interactif ; ses coordonnées ne sont pas transmises par le rapport HID.
+- **PlayStation DualShock 4** : disposition et symboles PlayStation, avec gâchettes analogiques et pavé tactile interactif. Un glissement à un doigt sur sa surface pilote les axes X/Y du stick choisi (gauche ou droit). La sensibilité du pavé tactile est réglable. Pendant le contact, le pavé tactile prend temporairement la priorité sur le stick ciblé ; au relâchement, la commande physique du stick reprend.
+
+#### Pavé tactile DualShock 4 : fonctionnement et limites
+
+Le pavé tactile convertit les gestes tactiles en commandes analogiques standard. Il ne transmet pas les coordonnées tactiles natives du DualShock 4 et ne reproduit pas le protocole multitouch de la manette Sony. Le clic physique du pavé tactile n'est pas pris en charge comme bouton distinct dans cette version. Le rapport HID existant est conservé : les mouvements sont transmis par les axes du stick sélectionné.
+
+La surface tactile a également été agrandie et légèrement remontée dans la disposition DualShock 4 afin de faciliter son utilisation. Ces ajustements concernent l'interface et ne modifient pas le protocole Bluetooth HID.
 - **Nintendo Switch Pro** : disposition adaptée aux commandes Switch Pro, avec gâchettes ZL/ZR numériques.
 
 La variation analogique des gâchettes dépend de la mesure de pression fournie par l'écran tactile. Si l'appareil ne signale pas de pression variable, PadMac peut interpréter l'appui comme une pression complète.
@@ -250,7 +259,7 @@ Conserve `pubspec.lock` dans le dépôt : pour une application Flutter, il perme
 
 - Le scénario principalement visé est **Android → Bluetooth HID → OpenJoystickDriver sur macOS**.
 - La compatibilité avec Windows, d'autres pilotes de manette virtuelle ou d'autres profils OJD n'est pas garantie.
-- Le pavé tactile DualShock 4 est actuellement un aperçu visuel et n'envoie pas de coordonnées.
+- Le pavé tactile DualShock 4 pilote les axes d'un stick via des gestes tactiles ; il ne fournit pas de multitouch natif DualShock 4 et son clic physique n'est pas transmis comme bouton dédié.
 - La variation analogique des gâchettes dépend des capacités de mesure de pression de l'écran tactile.
 - Les autorisations Bluetooth et les restrictions liées aux services en arrière-plan varient selon les versions d'Android et les fabricants.
 - Certains jeux ou applications peuvent ne pas reconnaître le contrôleur virtuel, même si OJD le détecte correctement.

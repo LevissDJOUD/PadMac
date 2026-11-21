@@ -15,6 +15,7 @@ import 'layouts/switch_pro_layout.dart';
 import 'layouts/xbox_layout.dart';
 import 'hid_gamepad.dart';
 import 'splash_screen.dart';
+import 'touchpad_controller.dart';
 
 AppPalette get _palette => AppTheme.current;
 Color get _background => _palette.background;
@@ -85,6 +86,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   double _stickSensitivity = 1.0;
   double _stickDeadZone = 0.10;
   double _triggerSensitivity = 1.0;
+
+  // Valeurs physiques conservées séparément des commandes du pavé tactile.
+  // Le pavé peut ainsi prendre temporairement la priorité sur un stick sans
+  // écraser la position réellement saisie sur ce stick.
+  double _physicalLeftStickX = 0.0;
+  double _physicalLeftStickY = 0.0;
+  double _physicalRightStickX = 0.0;
+  double _physicalRightStickY = 0.0;
+  double _touchpadStickX = 0.0;
+  double _touchpadStickY = 0.0;
+  bool _touchpadEngaged = false;
+  int _touchpadResetToken = 0;
+  TouchpadStickTarget _touchpadTarget = TouchpadStickTarget.right;
+  double _touchpadSensitivity = 1.0;
 
   ControllerProfileId _controllerProfileId = AppTheme.profile.value;
 
@@ -379,18 +394,68 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _pushReport();
   }
 
+  /// Applique la source prioritaire à chaque stick.
+  ///
+  /// Tant que le doigt est posé sur le pavé tactile, celui-ci remplace les
+  /// valeurs du stick sélectionné. Les valeurs physiques restent mémorisées
+  /// et redeviennent actives dès que le doigt est relâché.
+  void _applyEffectiveStickValues() {
+    final bool touchpadOnLeft =
+        _touchpadEngaged && _touchpadTarget == TouchpadStickTarget.left;
+    final bool touchpadOnRight =
+        _touchpadEngaged && _touchpadTarget == TouchpadStickTarget.right;
+
+    _state.lx = GamepadState.axis16(
+      touchpadOnLeft ? _touchpadStickX : _physicalLeftStickX,
+    );
+    _state.ly = GamepadState.axis16(
+      touchpadOnLeft ? _touchpadStickY : _physicalLeftStickY,
+    );
+    _state.rx = GamepadState.axis16(
+      touchpadOnRight ? _touchpadStickX : _physicalRightStickX,
+    );
+    _state.ry = GamepadState.axis16(
+      touchpadOnRight ? _touchpadStickY : _physicalRightStickY,
+    );
+  }
+
   void _setLeftStick(double x, double y) {
     setState(() {
-      _state.lx = GamepadState.axis16(x);
-      _state.ly = GamepadState.axis16(y);
+      _physicalLeftStickX = x;
+      _physicalLeftStickY = y;
+      _applyEffectiveStickValues();
     });
     _pushReport();
   }
 
   void _setRightStick(double x, double y) {
     setState(() {
-      _state.rx = GamepadState.axis16(x);
-      _state.ry = GamepadState.axis16(y);
+      _physicalRightStickX = x;
+      _physicalRightStickY = y;
+      _applyEffectiveStickValues();
+    });
+    _pushReport();
+  }
+
+  void _setTouchpadGestureActive(bool active) {
+    if (!mounted) return;
+    setState(() {
+      _touchpadEngaged = active;
+      if (!active) {
+        _touchpadStickX = 0.0;
+        _touchpadStickY = 0.0;
+      }
+      _applyEffectiveStickValues();
+    });
+    _pushReport();
+  }
+
+  void _setTouchpadVector(Offset value) {
+    if (!mounted) return;
+    setState(() {
+      _touchpadStickX = value.dx;
+      _touchpadStickY = value.dy;
+      _applyEffectiveStickValues();
     });
     _pushReport();
   }
@@ -413,6 +478,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _resetLocalState({required bool send}) {
     _sweepTimer?.cancel();
     _sweepOn = false;
+    _touchpadResetToken++;
+    _touchpadEngaged = false;
+    _touchpadStickX = 0.0;
+    _touchpadStickY = 0.0;
+    _physicalLeftStickX = 0.0;
+    _physicalLeftStickY = 0.0;
+    _physicalRightStickX = 0.0;
+    _physicalRightStickY = 0.0;
     _directions.fillRange(0, _directions.length, false);
     _state.reset();
     if (mounted) setState(() {});
@@ -433,6 +506,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _addLog('Connecte d’abord le Mac pour lancer le balayage.');
       return;
     }
+
+    // Le balayage doit être la seule source de commandes pendant le test.
+    _resetLocalState(send: true);
 
     // Use elapsed time instead of adding a fixed phase per Timer tick.
     // 120 Hz sampling produces a denser, smoother full orbit on the Pixel 7.
@@ -984,7 +1060,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                   _SettingsSlider(
                     title: 'Zone morte',
-                    subtitle: 'Évite les petites déviations autour du centre.',
+                    subtitle: 'Évite les petites déviations autour du centre des sticks et du pavé tactile DS4.',
                     value: _stickDeadZone,
                     min: 0.02,
                     max: 0.22,
@@ -997,6 +1073,86 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
             ),
           ),
+          if (profile.id == ControllerProfileId.dualShock4)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Icon(Icons.touch_app_rounded, color: _accent),
+                        const SizedBox(width: 9),
+                        const Text(
+                          'Pavé tactile DualShock 4',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Un glissement transforme le déplacement du doigt en axes analogiques. Le stick choisi est piloté tant que le doigt reste posé ; au relâchement, sa commande physique reprend.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<TouchpadStickTarget>(
+                      initialValue: _touchpadTarget,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Stick commandé par le pavé tactile',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const <DropdownMenuItem<TouchpadStickTarget>>[
+                        DropdownMenuItem<TouchpadStickTarget>(
+                          value: TouchpadStickTarget.left,
+                          child: Text('Stick gauche (L3)'),
+                        ),
+                        DropdownMenuItem<TouchpadStickTarget>(
+                          value: TouchpadStickTarget.right,
+                          child: Text('Stick droit (R3)'),
+                        ),
+                      ],
+                      onChanged: (TouchpadStickTarget? value) {
+                        if (value == null || value == _touchpadTarget) return;
+                        setState(() {
+                          _touchpadTarget = value;
+                          _applyEffectiveStickValues();
+                        });
+                        _pushReport();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _SettingsSlider(
+                      title: 'Sensibilité du pavé tactile',
+                      subtitle: 'Détermine la distance de glissement nécessaire pour atteindre l’amplitude maximale.',
+                      value: _touchpadSensitivity,
+                      min: 0.60,
+                      max: 1.80,
+                      divisions: 24,
+                      valueLabel: '${(_touchpadSensitivity * 100).round()} %',
+                      onChanged: (double value) =>
+                          setState(() => _touchpadSensitivity = value),
+                    ),
+                    Text(
+                      'Cette prise en charge convertit les gestes en axes HID génériques. Les coordonnées multitouch natives et le clic du pavé DS4 ne sont pas transmis.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 10,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -1070,6 +1226,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       _stickSensitivity = 1.0;
                       _stickDeadZone = 0.10;
                       _triggerSensitivity = 1.0;
+                      _touchpadTarget = TouchpadStickTarget.right;
+                      _touchpadSensitivity = 1.0;
                     }),
                     icon: const Icon(Icons.restart_alt_rounded),
                   ),
@@ -1248,12 +1406,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     right: 0,
                     top: bodyTop + bodyHeight * layout.touchpadTopFactor,
                     child: Center(
-                      child: _TouchpadPreview(
+                      child: InteractiveTouchpad(
+                        key: ValueKey<int>(_touchpadResetToken),
                         width: math.min(
                           width * layout.touchpadWidthFactor,
                           layout.touchpadMaxWidth * scale,
                         ),
                         height: layout.touchpadHeight * scale,
+                        sensitivity: _touchpadSensitivity,
+                        deadZone: _stickDeadZone,
+                        target: _touchpadTarget,
+                        enabled: !_sweepOn,
+                        onGestureStart: () => _setTouchpadGestureActive(true),
+                        onChanged: _setTouchpadVector,
+                        onGestureEnd: () => _setTouchpadGestureActive(false),
                       ),
                     ),
                   ),
@@ -2220,64 +2386,6 @@ class _CenterControls extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Aperçu visuel du pavé tactile DualShock 4.
-/// Il reste volontairement non interactif tant que le descripteur HID natif
-/// et le protocole de transmission des coordonnées ne sont pas implémentés.
-class _TouchpadPreview extends StatelessWidget {
-  final double width;
-  final double height;
-
-  const _TouchpadPreview({required this.width, required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Pavé tactile DualShock 4 : prise en charge à venir',
-      child: Container(
-        width: width,
-        height: height,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xFF202824),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppTheme.current.controlBorder, width: 1.2),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'PAVÉ TACTILE',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.58),
-                fontSize: math.max(8.0, height * 0.19).toDouble(),
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'À VENIR',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.30),
-                fontSize: math.max(6.0, height * 0.14).toDouble(),
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
